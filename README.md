@@ -58,7 +58,7 @@ Known quality issues the pipeline handles: Windows-1252 encoding, zero-census da
    - `assert_raw_rowcount_matches_manifest`: rows loaded must equal rows in the source file (this catches truncation like the Excel cutoff)
    - `assert_q2_2024_matches_da_project`: a regression test against the published dashboard numbers
    - grain, uniqueness, relationships, accepted values, and source freshness
-5. **Orchestrate** (`.github/workflows/pipeline.yml`): runs monthly and on demand. Every pull request runs the full pipeline on DuckDB, so broken SQL never reaches Snowflake.
+5. **Orchestrate** (`.github/workflows/pipeline.yml`): runs monthly and on demand, using credentials stored as encrypted GitHub secrets. Every pull request runs the full pipeline on DuckDB, so broken SQL never reaches Snowflake.
 
 The same dbt models run on DuckDB locally and in CI (`DBT_TARGET=dev`) and on Snowflake in production (`DBT_TARGET=prod`). Three small macros in `macros/cross_db.sql` cover the SQL dialect differences.
 
@@ -77,9 +77,11 @@ HPRD (hours per resident day) is calculated once, in dbt, as a weighted measure:
 
 ## Results
 
+- **Runs in production on Snowflake:** 5 quarters (Q2 2024, Q3 2025 to Q2 2026) plus the latest Provider Information snapshot, **6.6M source rows**, loaded and verified with a row-count match on every file
 - **Q2 2024 reconciles exactly with the published dashboard:** 3.30 national HPRD, 34% of facilities below 3.0 HPRD, 7.7% of hours from contract staff
-- **3.9M facility-days across 3 quarters**; the full local build runs in about 10 seconds
 - **Two years later (Q2 2026):** national HPRD rose to 3.38, the share of facilities below 3.0 fell to 30%, and contract staff share fell to 5.8%
+- **24 dbt steps (7 models, 1 snapshot, 16 tests):** 23 pass, and 1 data-quality check deliberately warns instead of failing. It flags facility-days with negative hours or more than 24 nursing hours per resident, so suspect CMS records get reviewed instead of silently skewing averages.
+- **Fast and cheap:** the dbt build on Snowflake takes about 22 seconds, the full GitHub Actions run about 2 minutes, on an X-Small warehouse that suspends after 60 seconds idle
 
 ## Tech stack
 
@@ -112,8 +114,18 @@ make docs           # optional: dbt docs site with the lineage graph
 **On AWS + Snowflake:**
 
 1. Run `snowflake/00_setup.sql`, `01_storage_integration.sql`, and `02_raw_tables.sql` once.
-2. Copy `.env.example` to `.env` and fill in your bucket and Snowflake credentials.
-3. Run:
+2. Set up AWS credentials with `aws configure` (stored in `~/.aws/credentials`, outside the repo).
+3. Create a key pair for the Snowflake service user and register the public key:
+   ```bash
+   mkdir -p ~/.snowflake
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.snowflake/rsa_key.p8 -nocrypt
+   openssl rsa -in ~/.snowflake/rsa_key.p8 -pubout -out ~/.snowflake/rsa_key.pub
+   ```
+   ```sql
+   alter user pipeline_svc set rsa_public_key = '<contents of rsa_key.pub without the header lines>';
+   ```
+4. Copy `.env.example` to `.env` and fill in your bucket, Snowflake account, and key path.
+5. Run:
 
 ```bash
 set -a; source .env; set +a
@@ -125,9 +137,10 @@ make prod           # ingest → S3 → Snowflake → dbt build
 - **Reconcile in a test, not by eye.** The Excel truncation bug in my first version looked fine in every chart. A row-count test against the source manifest turns that kind of silent data loss into a failed build.
 - **Land everything as text in RAW.** Loading raw columns as strings means a bad value in a new quarter never breaks the load. Typing and cleaning happen in dbt staging, where a failure is visible, tested, and easy to fix.
 - **Cloud permissions are part of the pipeline.** The S3 storage integration failed with an AssumeRole error until the IAM trust policy included Snowflake's external ID. I kept an internal-stage fallback so a permissions problem doesn't block the whole pipeline.
+- **Secrets never live in the repo.** AWS keys stay in the AWS CLI config, Snowflake logs in with a key pair (Snowflake no longer allows passwords for service users), and the scheduled run reads both from encrypted GitHub Actions secrets.
 
 **Next steps:** move orchestration to Airflow or Dagster, add alerting when a test fails, and point the dashboard directly at the Snowflake marts.
 
 ## Contact
 
-Jonathan Redding · San Antonio, TX · [LinkedIn](https://www.linkedin.com/in/jonathan-r-705136b9) · [GitHub](https://github.com/jlredding)
+Jonathan Redding · San Antonio, TX · [LinkedIn](https://www.linkedin.com/in/YOUR-HANDLE) · [GitHub](https://github.com/jlredding)
