@@ -1,6 +1,6 @@
 # No secrets in this file: everything sensitive comes from environment variables.
 # dev  = DuckDB file built by load/load_duckdb.py (free, runs anywhere, used in CI)
-# prod = Snowflake, key-pair auth (service users can't use passwords)
+# prod = Snowflake
 clipboard_health:
   target: "{{ env_var('DBT_TARGET', 'dev') }}"
   outputs:
