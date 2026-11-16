@@ -1,0 +1,21 @@
+# No secrets in this file: everything sensitive comes from environment variables.
+# dev  = DuckDB file built by load/load_duckdb.py (free, runs anywhere, used in CI)
+# prod = Snowflake, key-pair auth (service users can't use passwords)
+clipboard_health:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../../data/clipboard_health.duckdb') }}"
+      schema: main
+      threads: 4
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'CLIPBOARD_TRANSFORMER') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'CLIPBOARD_WH') }}"
+      database: clipboard_health
+      schema: staging
+      threads: 4

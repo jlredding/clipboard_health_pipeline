@@ -1,0 +1,64 @@
+name: pipeline
+
+on:
+  pull_request:            # CI: full pipeline on DuckDB with one quarter, no cloud needed
+  workflow_dispatch:       # manual run of the production pipeline
+    inputs:
+      force:
+        description: "Re-download files already ingested"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 11 5 * *"  # monthly (CMS refreshes Provider Info monthly, PBJ quarterly)
+
+jobs:
+  ci:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: Ingest Q2 2024 (the quarter with published DA results)
+        run: python ingest/ingest.py --dest local:data/raw --quarters 2024Q2
+      - run: python load/load_duckdb.py
+      - name: dbt build (models + tests, incl. reconciliation to DA results)
+        working-directory: dbt/clipboard_health
+        env: { DBT_PROFILES_DIR: ".", DBT_TARGET: dev }
+        run: dbt build
+
+  production:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+      RAW_DEST: s3://${{ vars.S3_BUCKET }}/clipboard
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PRIVATE_KEY_PATH: /tmp/snowflake_key.p8
+      SNOWFLAKE_ROLE: CLIPBOARD_TRANSFORMER
+      SNOWFLAKE_WAREHOUSE: CLIPBOARD_WH
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: Write Snowflake private key from secret (key-pair auth)
+        env: { SNOWFLAKE_PRIVATE_KEY: "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" }
+        run: |
+          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
+      - name: Ingest CMS files to S3
+        run: python ingest/ingest.py --dest "$RAW_DEST" ${{ inputs.force && '--force' || '' }}
+      - name: Load S3 -> Snowflake RAW
+        run: python load/load_snowflake.py --stage s3 --manifests "$RAW_DEST"
+      - name: dbt build on Snowflake
+        working-directory: dbt/clipboard_health
+        env: { DBT_PROFILES_DIR: ".", DBT_TARGET: prod }
+        run: |
+          dbt build
+          dbt source freshness
+      # Tuesday: the monitor agent (clipboard_health_ai) runs here after a successful build

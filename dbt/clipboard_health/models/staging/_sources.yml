@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw
+    database: clipboard_health
+    schema: raw
+    description: Files landed by ingest/ingest.py and loaded by load/*.py. All columns are text.
+    tables:
+      - name: pbj_daily
+        description: CMS Payroll Based Journal daily nurse staffing, one row per facility per day.
+      - name: provider_info
+        description: CMS Provider Information (star ratings, beds, ownership), one row per facility per monthly snapshot.
+      - name: load_manifest
+        description: One row per ingested file with the source's row count and checksum.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 120, period: day}   # CMS publishes PBJ quarterly
+          error_after: {count: 200, period: day}

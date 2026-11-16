@@ -1,0 +1,22 @@
+# Which CMS data to pull. Edit this file, not the scripts.
+
+pbj_daily_nurse_staffing:
+  # data.cms.gov publishes one dataset per quarter. The catalog (data.json) is
+  # searched by title and each quarter is matched on its start date, because
+  # CMS titles are inconsistent (e.g. Q3 2024 is titled "2024-09-01").
+  catalog_url: https://data.cms.gov/data.json
+  title_prefix: "Payroll Based Journal Daily Nurse Staffing"
+  quarters:
+    - 2024Q2   # matches the Data Analyst project, used to reconcile
+    - 2025Q3
+    - 2025Q4
+    - 2026Q1
+    - 2026Q2
+  source_encoding: cp1252   # PBJ files are Windows-1252, not UTF-8
+
+provider_info:
+  # CMS Provider Data Catalog dataset "Provider Information" (star ratings,
+  # beds, ownership). Only the latest monthly snapshot is published here;
+  # the dbt snapshot builds history from each run.
+  metastore_url: https://data.cms.gov/provider-data/api/1/metastore/schemas/dataset/items/4pq5-n9py
+  source_encoding: utf-8

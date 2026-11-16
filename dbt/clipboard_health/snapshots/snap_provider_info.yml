@@ -1,0 +1,20 @@
+snapshots:
+  - name: snap_provider_info
+    description: >
+      SCD Type 2 history of facility ratings and ownership. CMS only publishes the
+      current Provider Info file, so each pipeline run adds a new version when
+      something changes; dbt_valid_from / dbt_valid_to give the history.
+    relation: ref('stg_provider_info')
+    config:
+      schema: snapshots
+      unique_key: ccn
+      strategy: check
+      check_cols:
+        - ownership_type
+        - certified_beds
+        - chain_name
+        - overall_rating
+        - health_inspection_rating
+        - qm_rating
+        - staffing_rating
+        - special_focus_status

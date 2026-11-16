@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_pbj_daily
+    description: Typed PBJ daily staffing. nurse_hrs = RN + LPN + CNA direct-care hours (excludes DON/admin, same as the DA project).
+    columns:
+      - name: ccn
+        tests: [not_null]
+      - name: work_date
+        tests: [not_null]
+      - name: census
+        tests: [not_null]
+      - name: quarter
+        tests:
+          - not_null
+  - name: stg_provider_info
+    description: Latest CMS Provider Information snapshot, one row per CCN.
+    columns:
+      - name: ccn
+        tests: [unique, not_null]
+      - name: overall_rating
+        tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+              config:
+                where: "overall_rating is not null"

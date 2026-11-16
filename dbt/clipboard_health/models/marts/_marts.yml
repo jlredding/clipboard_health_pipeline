@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: fct_facility_day
+    description: Facility x day staffing with residents present. Grain enforced by assert_fct_facility_day_grain.
+    columns:
+      - name: ccn
+        description: CMS Certification Number (facility ID)
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_facility')
+                field: ccn
+      - name: daily_hprd
+        description: Direct-care nursing hours per resident that day
+  - name: dim_facility
+    description: One row per facility, Provider Info attributes and star ratings.
+    columns:
+      - name: ccn
+        tests: [unique, not_null]
+  - name: mart_facility_quarter
+    description: Facility x quarter staffing with weighted HPRD, contract share, ratings and QoQ change. Main table for the dashboard and AI apps.
+    columns:
+      - name: hprd
+        description: Weighted nursing hours per resident day = nurse_hrs / resident_days
+        tests: [not_null]
+      - name: hprd_change
+        description: HPRD minus the facility's previous loaded quarter (null for its first quarter)
+  - name: mart_state_quarter
+    description: State x quarter staffing summary, excluding reporting-gap facilities.
+  - name: mart_state_day
+    description: State x day staffing trend, excluding reporting-gap facilities.

@@ -1,0 +1,22 @@
+name: clipboard_health
+version: "1.0.0"
+profile: clipboard_health
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+vars:
+  hprd_reference: 3.0        # analysis reference line from the DA project (not a regulation)
+  low_day_hprd: 1.5          # a "low-staffing day"
+  reporting_gap_hprd: 0.5    # quarter HPRD below this = likely missing payroll data
+
+models:
+  clipboard_health:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table

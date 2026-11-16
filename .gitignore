@@ -1,0 +1,14 @@
+.env
+data/
+__pycache__/
+.venv/
+*.duckdb
+*.duckdb.wal
+
+*.p8
+*.pub
+.env
+.venv/
+data/
+dbt/clipboard_health/target/
+dbt/clipboard_health/logs/
