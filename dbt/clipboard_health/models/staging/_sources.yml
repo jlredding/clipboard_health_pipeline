@@ -12,7 +12,8 @@ sources:
         description: CMS Provider Information (star ratings, beds, ownership), one row per facility per monthly snapshot.
       - name: load_manifest
         description: One row per ingested file with the source's row count and checksum.
-        loaded_at_field: loaded_at
-        freshness:
-          warn_after: {count: 120, period: day}   # CMS publishes PBJ quarterly
-          error_after: {count: 200, period: day}
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 120, period: day}   # CMS publishes PBJ quarterly
+            error_after: {count: 200, period: day}
