@@ -38,7 +38,7 @@ jobs:
       RAW_DEST: s3://${{ vars.S3_BUCKET }}/clipboard
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PRIVATE_KEY_PATH: /tmp/snowflake_key.p8
+      SNOWFLAKE_PRIVATE_KEY_PATH: /tmp/snowflake_rsa_key.p8
       SNOWFLAKE_ROLE: CLIPBOARD_TRANSFORMER
       SNOWFLAKE_WAREHOUSE: CLIPBOARD_WH
     steps:
@@ -46,10 +46,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12", cache: pip }
       - run: pip install -r requirements.txt
-      - name: Write Snowflake private key from secret (key-pair auth)
-        env: { SNOWFLAKE_PRIVATE_KEY: "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" }
+      - name: Write Snowflake private key from secret
         run: |
-          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          printf '%s\n' "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
           chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
       - name: Ingest CMS files to S3
         run: python ingest/ingest.py --dest "$RAW_DEST" ${{ inputs.force && '--force' || '' }}
