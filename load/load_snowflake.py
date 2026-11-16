@@ -11,7 +11,7 @@ Each partition is loaded with delete-then-COPY inside one transaction, so re-run
 is safe and a failed COPY leaves the previous data in place.
 
 Connection settings come from environment variables (see .env.example):
-SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PRIVATE_KEY_PATH (key-pair auth), SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE
+SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PRIVATE_KEY_PATH, SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE
 """
 from __future__ import annotations
 
@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 
 import snowflake.connector
-from cryptography.hazmat.primitives import serialization  # installed with snowflake-connector-python
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ingest"))
@@ -46,24 +45,26 @@ def list_manifests(dest: str) -> list[dict]:
     return [store.read_json(k.removeprefix(prefix)) for k in sorted(keys)]
 
 
-def _private_key_der() -> bytes:
-    """Read the unencrypted PKCS#8 .p8 key file and return it as DER bytes for the connector."""
-    path = os.path.expanduser(os.environ["SNOWFLAKE_PRIVATE_KEY_PATH"])
-    with open(path, "rb") as f:
-        key = serialization.load_pem_private_key(f.read(), password=None)
-    return key.private_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
+def _auth() -> dict:
+    """Key-pair auth (SERVICE users can't use passwords). Falls back to a password if set."""
+    key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH")
+    if key_path:
+        from cryptography.hazmat.primitives import serialization
+
+        key = serialization.load_pem_private_key(Path(key_path).expanduser().read_bytes(), password=None)
+        return {"private_key": key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )}
+    return {"password": os.environ["SNOWFLAKE_PASSWORD"]}
 
 
 def connect():
-    # Key-pair auth: Snowflake service users (TYPE = SERVICE) can't use passwords.
     return snowflake.connector.connect(
         account=os.environ["SNOWFLAKE_ACCOUNT"],
         user=os.environ["SNOWFLAKE_USER"],
-        private_key=_private_key_der(),
+        **_auth(),
         role=os.environ.get("SNOWFLAKE_ROLE", "CLIPBOARD_TRANSFORMER"),
         warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "CLIPBOARD_WH"),
         database=DB,
