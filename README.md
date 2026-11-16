@@ -80,7 +80,7 @@ HPRD (hours per resident day) is calculated once, in dbt, as a weighted measure:
 - **Runs in production on Snowflake:** 5 quarters (Q2 2024, Q3 2025 to Q2 2026) plus the latest Provider Information snapshot, **6.6M source rows**, loaded and verified with a row-count match on every file
 - **Q2 2024 reconciles exactly with the published dashboard:** 3.30 national HPRD, 34% of facilities below 3.0 HPRD, 7.7% of hours from contract staff
 - **Two years later (Q2 2026):** national HPRD rose to 3.38, the share of facilities below 3.0 fell to 30%, and contract staff share fell to 5.8%
-- **24 dbt steps (7 models, 1 snapshot, 16 tests):** 23 pass, and 1 data-quality check deliberately warns instead of failing. It flags facility-days with negative hours or more than 24 nursing hours per resident, so suspect CMS records get reviewed instead of silently skewing averages.
+- **24 dbt steps (7 models, 1 snapshot, 16 tests):** 23 pass, and 1 data-quality check deliberately warns instead of failing. It flags 247 facility-days with negative hours or more than 24 nursing hours per resident, so suspect CMS records get reviewed instead of silently skewing averages.
 - **Fast and cheap:** the dbt build on Snowflake takes about 22 seconds, the full GitHub Actions run about 2 minutes, on an X-Small warehouse that suspends after 60 seconds idle
 
 ## Tech stack
